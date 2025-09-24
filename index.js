@@ -15,7 +15,8 @@ const app = express();
 const allowedOrigins = [
   "https://flashfire-frontend-hoisted.vercel.app", // your frontend
   "http://localhost:5173",
-  "https://www.flashfirejobs.com"
+  "https://www.flashfirejobs.com",
+  "https://flashfirejobs.com"
 ];
 
 app.use(
@@ -137,11 +138,20 @@ if (inviteePhone) {
       let scheduledJobs = [];
 
       if (inviteePhone && phoneRegex.test(inviteePhone)) {
-        await callQueue.add('callUser', {
-          phone: inviteePhone,
-          meetingTime: meetingTimeIndia,// meetingTimeUS,
-          role: 'client'
-        }, { delay });
+        await callQueue.add(
+  'callUser',
+  {
+    phone: inviteePhone,
+    meetingTime: meetingTimeIndia, // meetingTimeUS
+    role: 'client',
+  },
+  {
+    delay,
+    removeOnComplete: true,  // ✅ deletes job when done
+    removeOnFail: 100        // ✅ keep last 100 failed jobs only
+  }
+);
+
         scheduledJobs.push(`Client: ${inviteePhone}`);
         console.log(`📞 Valid phone, scheduled: ${inviteePhone}`);
         const scheduledMessage =`Reminder Call Scheduled For ${inviteePhone}-${inviteeName} for meeting scheduled on ${meetingTimeIndia} (IST).Reminder 10 minutes before Start of meeting.`
@@ -184,8 +194,8 @@ new Worker(
       const call = await client.calls.create({
         to: job.data.phone,
         from: process.env.TWILIO_FROM, // must be a Twilio voice-enabled number
-        url: `https://api.flashfirejobs.com/twilio-ivr?meetingTime=${encodeURIComponent(job.data.meetingTime)}`,
-        statusCallback: 'https://api.flashfirejobs.com/call-status',
+        url: `https://flashfire-backend-hoisted.onrender.com/twilio-ivr?meetingTime=${encodeURIComponent(job.data.meetingTime)}`,
+        statusCallback: 'https://flashfire-backend-hoisted.onrender.com/call-status',
         statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
         method: 'POST', // optional (Twilio defaults to POST for Calls API)
       });
@@ -197,7 +207,7 @@ new Worker(
       await DiscordConnect(process.env.DISCORD_REMINDER_CALL_WEBHOOK_URL,`❌ Twilio call failed for ${job.data.phone}. Error: ${error.message}`);
     }
   },
-  { connection: { url: process.env.UPSTASH_REDIS_URL } }
+  { connection: { url: process.env.REDIS_CLOUD_URL } }
 );
 
 // -------------------- Base Route --------------------
