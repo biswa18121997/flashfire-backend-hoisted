@@ -207,7 +207,7 @@ export default async function VerifyInterestedClient(req, res, next){
             console.log(responseCheckEmail, responseCheckMobile);
 
             const isMobileValid = responseCheckMobile?.carrier !== '' && responseCheckMobile?.location !== '';
-            const isEmailValid = responseCheckEmail?.result=='deliverable';
+            const isEmailValid = responseCheckEmail?.email_deliverability?.status=='deliverable' && responseCheckEmail?.email_deliverability?.is_smtp_valid;
 
             req.body.carrier = responseCheckMobile?.carrier;
             req.body.location = responseCheckMobile?.location;
