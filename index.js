@@ -85,6 +85,21 @@ app.post('/calendly-webhook', async (req, res) => {
   const { event, payload } = req.body;
 
   try {
+    if (event === "invitee.canceled") {
+      const inviteePhone = payload?.invitee?.questions_and_answers?.find(q =>
+        q.question.trim().toLowerCase() === 'phone number'
+      )?.answer?.replace(/\s+/g, '').replace(/(?!^\+)\D/g, '') || null;
+
+      if (inviteePhone) {
+        // remove by jobId = phone (we'll schedule jobs with phone as jobId below)
+        await callQueue.removeJobs(inviteePhone);
+        console.log(`🗑 Removed scheduled job for canceled invitee: ${inviteePhone}`);
+        await DiscordConnect(process.env.DISCORD_REMINDER_CALL_WEBHOOK_URL,
+          `🗑 Removed scheduled job for canceled meeting. Phone: ${inviteePhone}`
+        );
+      }
+      return res.status(200).json({ message: 'Invitee canceled, job removed' });
+    }
     if (event === "invitee.created") {
       console.log("📥 Calendly Webhook Received:", JSON.stringify(payload, null, 2));
 
@@ -136,6 +151,12 @@ if (inviteePhone) {
 
       const phoneRegex = /^\+?[1-9]\d{9,14}$/;
       let scheduledJobs = [];
+      if (inviteePhone && inviteePhone.startsWith("+91")) {
+  console.log(`🚫 Skipping India number: ${inviteePhone}`);
+  DiscordConnect(process.env.DISCORD_REMINDER_CALL_WEBHOOK_URL,`🚫 Skipping India number: ${inviteePhone}` );
+  return res.status(200).json({ message: 'Skipped India number' });
+}
+
 
       if (inviteePhone && phoneRegex.test(inviteePhone)) {
         await callQueue.add(
@@ -146,6 +167,7 @@ if (inviteePhone) {
     role: 'client',
   },
   {
+     jobId: inviteePhone,   // 🔑 use phone as jobId
     delay,
     removeOnComplete: true,  // ✅ deletes job when done
     removeOnFail: 100        // ✅ keep last 100 failed jobs only

@@ -148,10 +148,10 @@ const httpsAgent = new https.Agent({ rejectUnauthorized: !isDev });
 // };
 const validateEmail = async (email) => {
   try {
-    const res = await axios.get("https://api.kickbox.com/v2/verify", {
+    const res = await axios.get("https://emailreputation.abstractapi.com/v1", {
       params: {
         email,
-        apikey: process.env.KICKBOX_API_KEY, // your Kickbox API key here
+        api_key: process.env.ABSTRACT_API_EMAIL_VERIFICATION_API_KEY, // your Kickbox API key here
       },
       httpsAgent,
       headers: {
