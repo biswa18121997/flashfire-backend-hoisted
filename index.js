@@ -83,7 +83,7 @@ SID: ${CallSid}
 // -------------------- Calendly Webhook --------------------
 app.post('/calendly-webhook', async (req, res) => {
   const { event, payload } = req.body;
-
+  console.log(event,'-----------------------------------------------------------------');
   try {
     if (event === "invitee.canceled") {
       const inviteePhone = payload?.invitee?.questions_and_answers?.find(q =>
