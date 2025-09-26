@@ -109,7 +109,7 @@ app.post('/calendly-webhook', async (req, res) => {
 
       if (delay < 0) {
         console.log('⚠ Meeting is too soon to schedule calls.');
-        return res.status(400).json({ error: 'Meeting too soon to schedule call' });
+        // return res.status(400).json({ error: 'Meeting too soon to schedule call' });
       }
 
       // ✅ Convert to different time zones
@@ -249,4 +249,5 @@ if (!PORT) throw new Error('❌ process.env.PORT is not set. This is required fo
 app.listen(PORT || 4001, () => {
   console.log('✅ Server is live at port:', PORT || 4001);
 });
+
 
