@@ -139,7 +139,8 @@ if (inviteePhone) {
         "Google Meet Link": meetLink,
         "Meeting Time (Client US)": meetingTimeUS,
         "Meeting Time (Team India)": meetingTimeIndia,
-        "Booked At": bookedAt
+        "Booked At": bookedAt,
+        "UTM Source" : payload?.tracking?.utm_source || 'webpage_visit'
       };
 
       console.log("📅 New Calendly Booking:", bookingDetails);
