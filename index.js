@@ -91,7 +91,7 @@ app.post('/calendly-webhook', async (req, res) => {
       const meetLink = payload?.scheduled_event?.location?.join_url || 'Not Provided';
       console.log("📥 Calendly No-Show Webhook Received:", JSON.stringify(payload, null, 2));
     }
-    if (event === "invitee.canceled") {
+    if (event.includes("invitee.canceled")) {
       const inviteePhone = payload?.invitee?.questions_and_answers?.find(q =>
         q.question.trim().toLowerCase() === 'phone number'
       )?.answer?.replace(/\s+/g, '').replace(/(?!^\+)\D/g, '') || null;
