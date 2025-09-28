@@ -85,6 +85,12 @@ app.post('/calendly-webhook', async (req, res) => {
   const { event, payload } = req.body;
   console.log(event,'-----------------------------------------------------------------');
   try {
+    if(event == "invitee_no_show.created"){
+      const inviteeEmail = payload?.invitee?.email || payload?.email;
+      const inviteeName = payload?.invitee?.name || payload?.name;
+      const meetLink = payload?.scheduled_event?.location?.join_url || 'Not Provided';
+      console.log("📥 Calendly No-Show Webhook Received:", JSON.stringify(payload, null, 2));
+    }
     if (event === "invitee.canceled") {
       const inviteePhone = payload?.invitee?.questions_and_answers?.find(q =>
         q.question.trim().toLowerCase() === 'phone number'
@@ -142,6 +148,23 @@ if (inviteePhone) {
         "Booked At": bookedAt,
         "UTM Source" : payload?.tracking?.utm_source || 'webpage_visit'
       };
+      if(payload.tracking.utm_source !== 'webpage_visit' && payload.tracking.utm_source !== null ){
+        const utmData ={
+          clientName : inviteeName,
+          clientEmail : inviteeEmail,
+          clientPhone : inviteePhone || 'Not Provided',
+          utmSource : payload?.tracking?.utm_source ,
+        }
+        await fetch('https://utm-track-backend.onrender.com/api/track/utm-campaign-lead',{
+          method:'POST',
+          headers:{
+            'Content-Type':'application/json'          
+                  },
+          body:JSON.stringify(utmData)
+        })
+        console.log('✅ UTM campaign lead tracked:', utmData);  
+      }
+  
 
       console.log("📅 New Calendly Booking:", bookingDetails);
 
