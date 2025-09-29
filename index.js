@@ -146,7 +146,7 @@ app.post('/calendly-webhook', async (req, res) => {
     ?.replace(/\s+/g, "")
     ?.replace(/(?!^\+)\D/g, "") || null;
 
-  if (inviteePhone) {
+  if (inviteePhone && !inviteePhone.startsWith('+91')) {
     // remove by jobId = phone (we'll schedule jobs with phone as jobId below)
     await callQueue.removeJobs(inviteePhone);
     console.log(`🗑 Removed scheduled job for canceled invitee: ${inviteePhone}`);
