@@ -85,12 +85,49 @@ app.post('/calendly-webhook', async (req, res) => {
   const { event, payload } = req.body;
   console.log(event,'-----------------------------------------------------------------');
   try {
-    if(event == "invitee_no_show.created"){
-      const inviteeEmail = payload?.invitee?.email || payload?.email;
-      const inviteeName = payload?.invitee?.name || payload?.name;
-      const meetLink = payload?.scheduled_event?.location?.join_url || 'Not Provided';
-      console.log("📥 Calendly No-Show Webhook Received:", JSON.stringify(payload, null, 2));
+    if (event.includes("invitee_no_show.created")) {
+  const inviteeName = payload?.invitee?.name || payload?.name;
+  const meetLink = payload?.scheduled_event?.location?.join_url || 'Not Provided';
+  const inviteeNumber = payload?.invitee?.questions_and_answers?.find(q =>
+    q.question.toLowerCase().includes('phone')
+  )?.answer?.replace(/\s+/g, '').replace(/(?!^\+)\D/g, '') || null;
+
+  if (inviteeNumber) {
+    try {
+      const WATI_BASE_URL = process.env.WATI_URL;
+      const WATI_TOKEN = process.env.WATI_TOKEN;
+
+      // Using Template Message since we are initiating
+      await axios.post(
+        `${WATI_BASE_URL}/sendTemplateMessage?whatsappNumber=${inviteeNumber}`,
+        {
+          template_name: "no_show_reminder", // must match approved template name
+          broadcast_name: "Calendly_NoShow",
+          parameters: [
+            { name: "1", value: inviteeName },
+            { name: "2", value: meetLink }
+          ]
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${WATI_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      console.log(`✅ WhatsApp No-Show reminder sent to ${inviteeNumber}`);
+      await DiscordConnect(process.env.DISCORD_REMINDER_CALL_WEBHOOK_URL,`✅ WhatsApp No-Show reminder sent to ${inviteeNumber}`);
+    } catch (err) {
+      console.error("❌ Failed to send Template message:", err.response?.data || err.message);
+      await DiscordConnect(process.env.DISCORD_REMINDER_CALL_WEBHOOK_URL,`❌ WhatsApp No-Show reminder Error to ${inviteeNumber},${err.message}`);
+
     }
+  } else {
+    console.warn("⚠️ No phone number available for invitee.");
+  }
+}
+
     if (event.includes("invitee.canceled")) {
       const inviteePhone = payload?.invitee?.questions_and_answers?.find(q =>
         q.question.trim().toLowerCase() === 'phone number'
@@ -146,7 +183,8 @@ if (inviteePhone) {
         "Meeting Time (Client US)": meetingTimeUS,
         "Meeting Time (Team India)": meetingTimeIndia,
         "Booked At": bookedAt,
-        "UTM Source" : payload?.tracking?.utm_source || 'webpage_visit'
+        "UTM Source" : payload?.tracking?.utm_source || 'webpage_visit',
+        "Cancel URL": payload?.cancel_url
       };
       if(payload.tracking.utm_source !== 'webpage_visit' && payload.tracking.utm_source !== null ){
         const utmData ={
