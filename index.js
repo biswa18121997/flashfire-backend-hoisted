@@ -193,7 +193,7 @@ if (inviteePhone) {
           clientPhone : inviteePhone || 'Not Provided',
           utmSource : payload?.tracking?.utm_source ,
         }
-        await fetch('https://utm-track-backend.onrender.com/api/track/utm-campaign-lead',{
+        await fetch('https://clients-tracking.onrender.com/api/track/utm-campaign-lead',{
           method:'POST',
           headers:{
             'Content-Type':'application/json'          
