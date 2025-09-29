@@ -187,6 +187,7 @@ if (inviteePhone) {
         "Cancel URL": payload?.cancel_url
       };
       if(payload.tracking.utm_source !== 'webpage_visit' && payload.tracking.utm_source !== null ){
+        console.log('Tracking UTM campaign lead...');
         const utmData ={
           clientName : inviteeName,
           clientEmail : inviteeEmail,
