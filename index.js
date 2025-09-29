@@ -9,7 +9,7 @@ import { DateTime } from 'luxon';
 import { Worker } from 'bullmq';
 import { DiscordConnect } from './Utils/DiscordConnect.js';
 import TwilioReminder from './Controllers/TwilioReminder.js';
-
+import axios from 'axios'
 // -------------------- Express Setup --------------------
 const app = express();
 const allowedOrigins = [
@@ -84,21 +84,25 @@ SID: ${CallSid}
 app.post('/calendly-webhook', async (req, res) => {
   const { event, payload } = req.body;
   console.log(event,'-----------------------------------------------------------------');
-  console.log(payload);
+  console.log('req.body--->',req.body);
   try {
-    if (event=== "invitee_no_show.created") {
-  const inviteeName = payload?.invitee?.name || payload?.name;
-  const meetLink = payload?.scheduled_event?.location?.join_url || 'Not Provided';
-  const inviteeNumber = payload?.invitee?.questions_and_answers?.find(q =>
-    q.question.toLowerCase().includes('phone')
-  )?.answer?.replace(/\s+/g, '').replace(/(?!^\+)\D/g, '') || null;
+    if (event === "invitee_no_show.created") {
+  const inviteeName = payload?.name || payload?.invitee?.name;
+  const meetLink = payload?.scheduled_event?.location?.join_url || "Not Provided";
+
+  // ✅ Fix: questions_and_answers is top-level, not under payload.invitee
+  const inviteeNumber = payload?.questions_and_answers?.find(q =>
+    q.question.trim().toLowerCase() === "phone number"
+  )?.answer
+    ?.replace(/\s+/g, "")
+    ?.replace(/(?!^\+)\D/g, "") || null;
 
   if (inviteeNumber) {
     try {
       const WATI_BASE_URL = process.env.WATI_URL;
       const WATI_TOKEN = process.env.WATI_TOKEN;
 
-      // Using Template Message since we are initiating
+      // ✅ Using Template Message since we are initiating
       await axios.post(
         `${WATI_BASE_URL}/sendTemplateMessage?whatsappNumber=${inviteeNumber}`,
         {
@@ -118,32 +122,45 @@ app.post('/calendly-webhook', async (req, res) => {
       );
 
       console.log(`✅ WhatsApp No-Show reminder sent to ${inviteeNumber}`);
-      await DiscordConnect(process.env.DISCORD_REMINDER_CALL_WEBHOOK_URL,`✅ WhatsApp No-Show reminder sent to ${inviteeNumber}`);
+      await DiscordConnect(
+        process.env.DISCORD_REMINDER_CALL_WEBHOOK_URL,
+        `✅ WhatsApp No-Show reminder sent to ${inviteeNumber}`
+      );
     } catch (err) {
       console.error("❌ Failed to send Template message:", err.response?.data || err.message);
-      await DiscordConnect(process.env.DISCORD_REMINDER_CALL_WEBHOOK_URL,`❌ WhatsApp No-Show reminder Error to ${inviteeNumber},${err.message}`);
-
+      await DiscordConnect(
+        process.env.DISCORD_REMINDER_CALL_WEBHOOK_URL,
+        `❌ WhatsApp No-Show reminder Error to ${inviteeNumber}, ${err.message}`
+      );
     }
   } else {
     console.warn("⚠️ No phone number available for invitee.");
   }
 }
 
-    if (event==="invitee.canceled") {
-      const inviteePhone = payload?.invitee?.questions_and_answers?.find(q =>
-        q.question.trim().toLowerCase() === 'phone number'
-      )?.answer?.replace(/\s+/g, '').replace(/(?!^\+)\D/g, '') || null;
 
-      if (inviteePhone) {
-        // remove by jobId = phone (we'll schedule jobs with phone as jobId below)
-        await callQueue.removeJobs(inviteePhone);
-        console.log(`🗑 Removed scheduled job for canceled invitee: ${inviteePhone}`);
-        await DiscordConnect(process.env.DISCORD_REMINDER_CALL_WEBHOOK_URL,
-          `🗑 Removed scheduled job for canceled meeting. Phone: ${inviteePhone}`
-        );
-      }
-      return res.status(200).json({ message: 'Invitee canceled, job removed' });
-    }
+    if (event === "invitee.canceled") {
+  const inviteePhone = payload?.questions_and_answers?.find(q =>
+    q.question.trim().toLowerCase() === "phone number"
+  )?.answer
+    ?.replace(/\s+/g, "")
+    ?.replace(/(?!^\+)\D/g, "") || null;
+
+  if (inviteePhone) {
+    // remove by jobId = phone (we'll schedule jobs with phone as jobId below)
+    await callQueue.removeJobs(inviteePhone);
+    console.log(`🗑 Removed scheduled job for canceled invitee: ${inviteePhone}`);
+    await DiscordConnect(
+      process.env.DISCORD_REMINDER_CALL_WEBHOOK_URL,
+      `🗑 Removed scheduled job for canceled meeting. Phone: ${inviteePhone}`
+    );
+  } else {
+    console.log("⚠️ No phone number found in canceled payload");
+  }
+
+  return res.status(200).json({ message: "Invitee canceled, job removed" });
+}
+
     if (event === "invitee.created") {
       console.log("📥 Calendly Webhook Received:", JSON.stringify(payload, null, 2));
 
